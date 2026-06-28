@@ -185,6 +185,38 @@ cd terraform
 terraform destroy
 ```
 
+## Remote state (required for CI/CD)
+
+Terraform state is stored in S3 so your PC and GitHub Actions share the same inventory:
+
+| Resource | Name |
+|----------|------|
+| S3 bucket | `cloud-workload-status-tfstate-240828340986` |
+| DynamoDB lock table | `cloud-workload-status-tfstate-lock` |
+| State key | `project1/terraform.tfstate` |
+
+**One-time bootstrap** (already done if you followed Phase 6):
+
+```powershell
+cd terraform/bootstrap
+terraform init
+terraform apply
+```
+
+**Migrate local state to S3** (one time):
+
+```powershell
+cd terraform
+terraform init -migrate-state
+# type: yes
+```
+
+### Error: ResourceAlreadyExists in GitHub Actions
+
+This means CI had **empty state** but AWS already had resources from a local `terraform apply`.
+
+**Fix:** Use the S3 backend above and migrate state. CI and your laptop must share the same state file.
+
 ## License
 
 MIT — learning project

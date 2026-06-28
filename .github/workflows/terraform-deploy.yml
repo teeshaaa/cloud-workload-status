@@ -32,7 +32,7 @@ jobs:
           aws-region: ${{ vars.AWS_REGION || 'eu-north-1' }}
 
       - name: Terraform init
-        run: terraform init
+        run: terraform init -input=false
 
       - name: Terraform plan
         env:
@@ -63,7 +63,7 @@ jobs:
           aws-region: ${{ vars.AWS_REGION || 'eu-north-1' }}
 
       - name: Terraform init
-        run: terraform init
+        run: terraform init -input=false
 
       - name: Terraform apply
         env:
