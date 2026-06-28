@@ -1,0 +1,74 @@
+name: Terraform Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "terraform/**"
+      - "app.py"
+      - "requirements.txt"
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    name: Terraform plan
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION || 'eu-north-1' }}
+
+      - name: Terraform init
+        run: terraform init
+
+      - name: Terraform plan
+        env:
+          TF_VAR_ssh_cidr: ${{ secrets.TF_VAR_ssh_cidr }}
+          TF_VAR_key_name: ${{ vars.TF_VAR_key_name || 'test' }}
+          TF_VAR_enable_alb: ${{ vars.TF_VAR_enable_alb || 'false' }}
+          TF_VAR_enable_https: ${{ vars.TF_VAR_enable_https || 'false' }}
+        run: terraform plan -no-color -input=false
+
+  apply:
+    name: Terraform apply
+    needs: plan
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION || 'eu-north-1' }}
+
+      - name: Terraform init
+        run: terraform init
+
+      - name: Terraform apply
+        env:
+          TF_VAR_ssh_cidr: ${{ secrets.TF_VAR_ssh_cidr }}
+          TF_VAR_key_name: ${{ vars.TF_VAR_key_name || 'test' }}
+          TF_VAR_enable_alb: ${{ vars.TF_VAR_enable_alb || 'false' }}
+          TF_VAR_enable_https: ${{ vars.TF_VAR_enable_https || 'false' }}
+        run: terraform apply -auto-approve -input=false
