@@ -2,16 +2,28 @@
 # Command: copy terraform.tfvars.example terraform.tfvars
 
 aws_region = "eu-north-1"
-key_name   = "test"
+environment = "dev"
+key_name    = "test"
 
 # Your public IP with /32 suffix. Find it at https://ifconfig.me
 # Example: if your IP is 203.0.113.10, use "203.0.113.10/32"
 ssh_cidr = "YOUR_PUBLIC_IP/32"
 
-# Phase 5: set true to add an Application Load Balancer (extra AWS cost)
+# Safer defaults after Phase 10
+enable_ssh = false
 enable_alb = false
+enable_nat_gateway = false
+enable_detection_pipeline = false
+enable_cloudtrail = false
 
 # Phase 6 (optional): HTTPS — requires a domain + Route53 hosted zone in AWS
 enable_https      = false
 domain_name       = "api.example.com"
 route53_zone_name = "example.com"
+
+# Phase 8: configure GitHub owner so Terraform can create the OIDC deploy role
+github_owner = "your-github-username"
+github_repo  = "cloud-workload-status"
+
+# Optional notification email for CloudWatch alarms, decoy alerts, and budgets
+alarm_email = "you@example.com"

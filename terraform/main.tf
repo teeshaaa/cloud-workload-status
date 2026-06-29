@@ -2,16 +2,11 @@ provider "aws" {
   region = var.aws_region
 }
 
-data "aws_vpc" "default" {
-  default = true
+data "aws_availability_zones" "available" {
+  state = "available"
 }
 
-data "aws_subnets" "default" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
-  }
-}
+data "aws_caller_identity" "current" {}
 
 data "aws_ami" "ubuntu" {
   most_recent = true
@@ -28,28 +23,37 @@ data "aws_ami" "ubuntu" {
   }
 }
 
-resource "aws_security_group" "app" {
-  name        = "${var.project_name}-sg"
-  description = "Allow SSH and Flask app traffic"
-  vpc_id      = data.aws_vpc.default.id
-
-  ingress {
-    description = "SSH from your IP"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = [var.ssh_cidr]
+data "aws_instances" "app" {
+  filter {
+    name   = "tag:Project"
+    values = [var.project_name]
   }
 
+  filter {
+    name   = "instance-state-name"
+    values = ["running"]
+  }
+}
+
+data "aws_instance" "app" {
+  count       = length(data.aws_instances.app.ids) > 0 ? 1 : 0
+  instance_id = data.aws_instances.app.ids[0]
+}
+
+resource "aws_security_group" "app" {
+  name        = "${local.app_name}-sg"
+  description = "Allow app traffic from ALB or direct access"
+  vpc_id      = aws_vpc.main.id
+
   dynamic "ingress" {
-    for_each = var.enable_alb ? [] : [1]
+    for_each = var.enable_ssh ? [1] : []
 
     content {
-      description = "Flask app direct access"
-      from_port   = var.app_port
-      to_port     = var.app_port
+      description = "SSH from your IP"
+      from_port   = 22
+      to_port     = 22
       protocol    = "tcp"
-      cidr_blocks = ["0.0.0.0/0"]
+      cidr_blocks = [var.ssh_cidr]
     }
   }
 
@@ -57,11 +61,23 @@ resource "aws_security_group" "app" {
     for_each = var.enable_alb ? [1] : []
 
     content {
-      description     = "Flask app from load balancer only"
+      description     = "App traffic from ALB only"
       from_port       = var.app_port
       to_port         = var.app_port
       protocol        = "tcp"
       security_groups = [aws_security_group.alb[0].id]
+    }
+  }
+
+  dynamic "ingress" {
+    for_each = var.enable_alb ? [] : [1]
+
+    content {
+      description = "Direct app access when ALB is disabled"
+      from_port   = var.app_port
+      to_port     = var.app_port
+      protocol    = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
     }
   }
 
@@ -73,30 +89,7 @@ resource "aws_security_group" "app" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = {
-    Name    = "${var.project_name}-sg"
-    Project = var.project_name
-  }
-}
-
-resource "aws_instance" "app" {
-  ami                    = data.aws_ami.ubuntu.id
-  instance_type          = var.instance_type
-  key_name               = var.key_name
-  vpc_security_group_ids = [aws_security_group.app.id]
-  subnet_id              = data.aws_subnets.default.ids[0]
-  iam_instance_profile   = aws_iam_instance_profile.ec2.name
-
-  user_data = templatefile("${path.module}/user_data.sh.tpl", {
-    app_py_content           = file("${path.module}/../app.py")
-    requirements_txt_content = file("${path.module}/../requirements.txt")
-    app_port                 = var.app_port
-    log_group_name           = aws_cloudwatch_log_group.app.name
-    aws_region               = var.aws_region
+  tags = merge(local.common_tags, {
+    Name = "${local.app_name}-sg"
   })
-
-  tags = {
-    Name    = "${var.project_name}-ec2"
-    Project = var.project_name
-  }
 }
