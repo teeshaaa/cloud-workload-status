@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   plan:
@@ -27,8 +28,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ vars.AWS_REGION || 'eu-north-1' }}
 
       - name: Terraform init
@@ -38,8 +38,13 @@ jobs:
         env:
           TF_VAR_ssh_cidr: ${{ secrets.TF_VAR_ssh_cidr }}
           TF_VAR_key_name: ${{ vars.TF_VAR_key_name || 'test' }}
-          TF_VAR_enable_alb: ${{ vars.TF_VAR_enable_alb || 'false' }}
+          TF_VAR_enable_ssh: ${{ vars.TF_VAR_enable_ssh || 'false' }}
+          TF_VAR_enable_alb: ${{ vars.TF_VAR_enable_alb || 'true' }}
           TF_VAR_enable_https: ${{ vars.TF_VAR_enable_https || 'false' }}
+          TF_VAR_environment: ${{ vars.TF_VAR_environment || 'dev' }}
+          TF_VAR_github_owner: ${{ vars.GITHUB_OWNER || '' }}
+          TF_VAR_github_repo: ${{ vars.GITHUB_REPO || github.event.repository.name }}
+          TF_VAR_alarm_email: ${{ vars.ALARM_EMAIL || '' }}
         run: terraform plan -no-color -input=false
 
   apply:
@@ -58,8 +63,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ vars.AWS_REGION || 'eu-north-1' }}
 
       - name: Terraform init
@@ -69,6 +73,11 @@ jobs:
         env:
           TF_VAR_ssh_cidr: ${{ secrets.TF_VAR_ssh_cidr }}
           TF_VAR_key_name: ${{ vars.TF_VAR_key_name || 'test' }}
-          TF_VAR_enable_alb: ${{ vars.TF_VAR_enable_alb || 'false' }}
+          TF_VAR_enable_ssh: ${{ vars.TF_VAR_enable_ssh || 'false' }}
+          TF_VAR_enable_alb: ${{ vars.TF_VAR_enable_alb || 'true' }}
           TF_VAR_enable_https: ${{ vars.TF_VAR_enable_https || 'false' }}
+          TF_VAR_environment: ${{ vars.TF_VAR_environment || 'dev' }}
+          TF_VAR_github_owner: ${{ vars.GITHUB_OWNER || '' }}
+          TF_VAR_github_repo: ${{ vars.GITHUB_REPO || github.event.repository.name }}
+          TF_VAR_alarm_email: ${{ vars.ALARM_EMAIL || '' }}
         run: terraform apply -auto-approve -input=false

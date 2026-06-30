@@ -20,8 +20,8 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Syntax check
-        run: python -m py_compile app.py
+      - name: Run tests
+        run: pytest
 
   terraform:
     name: Terraform validate
@@ -42,3 +42,16 @@ jobs:
 
       - name: Validate
         run: terraform validate
+
+  security:
+    name: Terraform security scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkov scan
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: terraform
+          quiet: true
+          soft_fail: true
